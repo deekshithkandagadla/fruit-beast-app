@@ -1,6 +1,6 @@
 # React + Vite
 # fruit-beast-app
-# fruit-beast-app
+# final_edit for version 1
 
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
