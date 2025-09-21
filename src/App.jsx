@@ -210,7 +210,7 @@ export default function App() {
     const [selectedDate, setSelectedDate] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const fileInputRef = useRef(null);
-    const apiKey = ""; 
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
     // --- Firebase & Data Logic ---
     useEffect(() => {
