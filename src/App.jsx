@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import FruitLogForm from './FruitLogForm';
+import FruitLogList from './FruitLogList';
 // IMPORTANT: Add Firebase imports for a real project. For this single-file environment,
 // we will assume they are loaded via script tags in the HTML head.
 // import { initializeApp } from "firebase/app";
@@ -376,9 +378,10 @@ export default function App() {
                     <p className="text-slate-500 mt-2 text-lg">Your AI guide to perfect ripeness</p>
                 </header>
 
-                 <div className="w-full flex justify-center border-b border-slate-300 mb-6">
+                <div className="w-full flex justify-center border-b border-slate-300 mb-6">
                     <button onClick={() => setView('home')} className={`px-4 py-2 ${view === 'home' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-slate-500'}`}>Home</button>
                     <button onClick={() => setView('calendar')} className={`px-4 py-2 ${view === 'calendar' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-slate-500'}`}>Logbook</button>
+                    <button onClick={() => setView('firebase-logbook')} className={`px-4 py-2 ${view === 'firebase-logbook' ? 'border-b-2 border-green-500 text-green-600' : 'text-slate-500'}`}>Logbook (Firebase)</button>
                 </div>
 
                 {view === 'home' && (
@@ -402,6 +405,12 @@ export default function App() {
                         </div>
                     </>
                 )}
+                                {view === 'firebase-logbook' && (
+                                    <div className="w-full max-w-xl mx-auto">
+                                        <FruitLogForm />
+                                        <FruitLogList />
+                                    </div>
+                                )}
 
                 {view === 'calendar' && (
                     <CalendarView fruitLogs={fruitLogs} selectedDate={selectedDate} onDateSelect={setSelectedDate} />
