@@ -1,44 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import FruitLogForm from './FruitLogForm';
 import FruitLogList from './FruitLogList';
-// IMPORTANT: Add Firebase imports for a real project. For this single-file environment,
-// we will assume they are loaded via script tags in the HTML head.
-// import { initializeApp } from "firebase/app";
-// import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-// import { getFirestore, doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
-
-// --- MOCK FIREBASE FOR DEMO ---
-// In a real app, you'd replace this with your actual firebase config and initialization.
-const firebase = {
-    auth: {
-        onAuthStateChanged: (callback) => {
-            setTimeout(() => callback({ uid: 'demoUser123' }), 500);
-            return () => {}; // Unsubscribe function
-        },
-    },
-    firestore: {
-        data: {
-            'fruit_logs': {
-                '2025-9-12': { fruits: [{ name: 'Apple', score: 85 }] },
-                '2025-9-10': { fruits: [{ name: 'Banana', score: 90 }, { name: 'Orange', score: 92 }] },
-            }
-        },
-        getDoc: (path) => {
-            const data = firebase.firestore.data[path.collection][path.docId];
-            return Promise.resolve({ exists: () => !!data, data: () => data });
-        },
-        updateDoc: (path, newData) => {
-             const existing = firebase.firestore.data[path.collection][path.docId]?.fruits || [];
-             firebase.firestore.data[path.collection][path.docId] = { fruits: [...existing, ...newData.fruits] };
-             return Promise.resolve();
-        },
-        setDoc: (path, newData) => {
-             firebase.firestore.data[path.collection][path.docId] = newData;
-             return Promise.resolve();
-        }
-    }
-};
-// --- END MOCK ---
+import { db } from './firebase';
+import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 
 // Helper function to convert file to base64
@@ -210,43 +174,54 @@ export default function App() {
     const [suggestion, setSuggestion] = useState({ text: "Loading today's suggestion..." });
     const [fruitLogs, setFruitLogs] = useState({});
     const [selectedDate, setSelectedDate] = useState(null);
-    const [currentUser, setCurrentUser] = useState(null);
+    // For demo, skip auth. In production, add Firebase Auth and set user state.
+    const [currentUser] = useState({ uid: 'demoUser123' });
     const fileInputRef = useRef(null);
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-    // --- Firebase & Data Logic ---
+
+    // Listen to fruit logs in Firestore for the current user
     useEffect(() => {
-        // Mock Auth Listener
-        const unsubscribe = firebase.auth.onAuthStateChanged(user => {
-            if (user) {
-                setCurrentUser(user);
-                // Fetch initial logs for demo
-                setFruitLogs(firebase.firestore.data.fruit_logs);
-            } else {
-                setCurrentUser(null);
-            }
+        const q = query(collection(db, 'fruitLogs'), orderBy('date', 'desc'));
+        const unsub = onSnapshot(q, (snapshot) => {
+            // Group logs by date for calendar view
+            const grouped = {};
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (!data.date) return;
+                if (!grouped[data.date]) grouped[data.date] = { fruits: [] };
+                grouped[data.date].fruits.push({
+                    name: data.fruitName || data.name,
+                    score: data.nutritionScore || data.score,
+                });
+            });
+            setFruitLogs(grouped);
         });
-        return () => unsubscribe();
+        return () => unsub();
     }, []);
 
+    // Log fruit to Firestore
     const logFruit = async (fruit) => {
         if (!currentUser) return;
-        const today = new Date('2025-09-13T12:00:00'); // Fixed date for demo
+        const today = new Date();
         const dateKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-        
-        const logData = { name: fruit.fruitName, score: fruit.nutritionScore };
-        const newLogs = { ...fruitLogs };
-        
-        if (newLogs[dateKey]) {
-            newLogs[dateKey].fruits.push(logData);
-        } else {
-            newLogs[dateKey] = { fruits: [logData] };
+        const log = {
+            date: dateKey,
+            fruitName: fruit.fruitName,
+            nutritionScore: fruit.nutritionScore,
+            nutrition: fruit.nutrition,
+            ripeness: fruit.ripeness,
+            shelfPeriod: fruit.shelfPeriod,
+            waitTime: fruit.waitTime,
+            userId: currentUser.uid,
+            createdAt: new Date().toISOString(),
+        };
+        try {
+            await addDoc(collection(db, 'fruitLogs'), log);
+            alert(`${fruit.fruitName} has been logged to your calendar!`);
+        } catch (err) {
+            alert('Error logging fruit: ' + err.message);
         }
-
-        // Mock Firestore update
-        await firebase.firestore.setDoc({collection: 'fruit_logs', docId: dateKey}, newLogs[dateKey]);
-        setFruitLogs(newLogs);
-        alert(`${fruit.fruitName} has been logged to your calendar!`);
     };
 
     // --- AI Logic ---

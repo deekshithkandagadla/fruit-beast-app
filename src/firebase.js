@@ -4,12 +4,13 @@ import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   // TODO: Replace with your actual Firebase config
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: "AIzaSyC_ANIDvhtIu5aHu0osIvCBtAt8auqx9Xw",
+  authDomain: "fruit-beast.firebaseapp.com",
+  projectId: "fruit-beast",
+  storageBucket: "fruit-beast.firebasestorage.app",
+  messagingSenderId: "1013290434742",
+  appId: "1:1013290434742:web:556be76b3c0dac390d2617",
+  measurementId: "G-KXQZC58NE4"
 };
 
 const app = initializeApp(firebaseConfig);
