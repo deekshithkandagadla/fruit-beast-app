@@ -405,12 +405,14 @@ export default function App() {
                         </div>
                     </>
                 )}
-                                {view === 'firebase-logbook' && (
-                                    <div className="w-full max-w-xl mx-auto">
-                                        <FruitLogForm />
-                                        <FruitLogList />
-                                    </div>
-                                )}
+                                                {view === 'firebase-logbook' && (
+                                                    <div className="w-full max-w-xl mx-auto">
+                                                        <div className="mb-4 p-4 bg-blue-50 rounded text-blue-900 text-sm">
+                                                            <strong>How to log a fruit:</strong> Scan a fruit using the Home tab, then click <span className="font-semibold">Log this Fruit</span> on the analysis screen. All details will be auto-filled and saved to Firebase.
+                                                        </div>
+                                                        <FruitLogList />
+                                                    </div>
+                                                )}
 
                 {view === 'calendar' && (
                     <CalendarView fruitLogs={fruitLogs} selectedDate={selectedDate} onDateSelect={setSelectedDate} />
