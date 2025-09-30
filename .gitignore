@@ -22,3 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sensitive files and secrets
+.env
+.env.*
+firebase-service-account.json
+*.key
+*.pem
+*.crt
+*.p12
+*.jks
+*.pfx
+*.bak
+*.backup

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import FruitLogForm from './FruitLogForm';
 import FruitLogList from './FruitLogList';
-import { db } from './firebase';
+import { db, auth } from './firebase';
+import Auth from './Auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 
@@ -174,14 +176,25 @@ export default function App() {
     const [suggestion, setSuggestion] = useState({ text: "Loading today's suggestion..." });
     const [fruitLogs, setFruitLogs] = useState({});
     const [selectedDate, setSelectedDate] = useState(null);
-    // For demo, skip auth. In production, add Firebase Auth and set user state.
-    const [currentUser] = useState({ uid: 'demoUser123' });
+    // Auth state
+    const [currentUser, setCurrentUser] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
     const fileInputRef = useRef(null);
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 
+    // Listen for auth state changes
+    useEffect(() => {
+        const unsub = onAuthStateChanged(auth, (user) => {
+            setCurrentUser(user);
+            setAuthLoading(false);
+        });
+        return () => unsub();
+    }, []);
+
     // Listen to fruit logs in Firestore for the current user
     useEffect(() => {
+        if (!currentUser) return;
         const q = query(collection(db, 'fruitLogs'), orderBy('date', 'desc'));
         const unsub = onSnapshot(q, (snapshot) => {
             // Group logs by date for calendar view
@@ -198,7 +211,7 @@ export default function App() {
             setFruitLogs(grouped);
         });
         return () => unsub();
-    }, []);
+    }, [currentUser]);
 
     // Log fruit to Firestore
     const logFruit = async (fruit) => {
@@ -343,22 +356,30 @@ export default function App() {
     };
 
     // --- Main Render Logic ---
+    if (authLoading) {
+        return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    }
+    if (!currentUser) {
+        return <Auth onAuth={setCurrentUser} />;
+    }
+
     return (
         <div className="bg-slate-100 min-h-screen font-sans text-slate-900 flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8">
             {isCameraOpen && <CameraView onCapture={file => { handleImageChange(file); setIsCameraOpen(false); }} onClose={() => setIsCameraOpen(false)} />}
-            
             <main className="w-full max-w-2xl mx-auto">
                 <header className="text-center my-8">
                     <h1 className="text-4xl sm:text-5xl font-extrabold text-teal-600 tracking-tight cursor-pointer" onClick={() => { setView('home'); setAnalysisResult(null); setImage(null); }}>Fruit Beast</h1>
                     <p className="text-slate-500 mt-2 text-lg">Your AI guide to perfect ripeness</p>
+                    <div className="mt-2 flex justify-center items-center gap-4">
+                        <span className="text-slate-600 text-sm">{currentUser.isAnonymous ? 'Guest' : (currentUser.email || 'User')}</span>
+                        <button onClick={() => signOut(auth)} className="text-xs bg-slate-300 px-3 py-1 rounded hover:bg-slate-400">Logout</button>
+                    </div>
                 </header>
-
                 <div className="w-full flex justify-center border-b border-slate-300 mb-6">
                     <button onClick={() => setView('home')} className={`px-4 py-2 ${view === 'home' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-slate-500'}`}>Home</button>
                     <button onClick={() => setView('calendar')} className={`px-4 py-2 ${view === 'calendar' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-slate-500'}`}>Logbook</button>
                     <button onClick={() => setView('firebase-logbook')} className={`px-4 py-2 ${view === 'firebase-logbook' ? 'border-b-2 border-green-500 text-green-600' : 'text-slate-500'}`}>Logbook (Firebase)</button>
                 </div>
-
                 {view === 'home' && (
                     <>
                         <SuggestionCard suggestion={suggestion} onRemind={requestNotification} />
@@ -380,19 +401,17 @@ export default function App() {
                         </div>
                     </>
                 )}
-                                                {view === 'firebase-logbook' && (
-                                                    <div className="w-full max-w-xl mx-auto">
-                                                        <div className="mb-4 p-4 bg-blue-50 rounded text-blue-900 text-sm">
-                                                            <strong>How to log a fruit:</strong> Scan a fruit using the Home tab, then click <span className="font-semibold">Log this Fruit</span> on the analysis screen. All details will be auto-filled and saved to Firebase.
-                                                        </div>
-                                                        <FruitLogList />
-                                                    </div>
-                                                )}
-
+                {view === 'firebase-logbook' && (
+                    <div className="w-full max-w-xl mx-auto">
+                        <div className="mb-4 p-4 bg-blue-50 rounded text-blue-900 text-sm">
+                            <strong>How to log a fruit:</strong> Scan a fruit using the Home tab, then click <span className="font-semibold">Log this Fruit</span> on the analysis screen. All details will be auto-filled and saved to Firebase.
+                        </div>
+                        <FruitLogList />
+                    </div>
+                )}
                 {view === 'calendar' && (
                     <CalendarView fruitLogs={fruitLogs} selectedDate={selectedDate} onDateSelect={setSelectedDate} />
                 )}
-
                 {view === 'analysis' && (
                     <div className="bg-white rounded-2xl shadow-xl w-full p-6 sm:p-8">
                         <div className="w-full h-64 mb-6 rounded-lg overflow-hidden shadow-inner"><img src={image} alt="Selected fruit" className="w-full h-full object-cover" /></div>
