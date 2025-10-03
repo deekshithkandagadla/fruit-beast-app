@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import FruitLogForm from './FruitLogForm';
 import FruitLogList from './FruitLogList';
 import { db } from './firebase';
+import ZipCodeDialog from './ZipCodeDialog';
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 
@@ -163,7 +164,6 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
 );
 
 
-export default function App() {
     // App State
     const [view, setView] = useState('home'); // home, analysis, calendar
     const [image, setImage] = useState(null);
@@ -174,6 +174,8 @@ export default function App() {
     const [suggestion, setSuggestion] = useState({ text: "Loading today's suggestion..." });
     const [fruitLogs, setFruitLogs] = useState({});
     const [selectedDate, setSelectedDate] = useState(null);
+    const [zipCode, setZipCode] = useState(() => localStorage.getItem('zipCode') || '');
+    const [showZipDialog, setShowZipDialog] = useState(!localStorage.getItem('zipCode'));
     // For demo, skip auth. In production, add Firebase Auth and set user state.
     const [currentUser] = useState({ uid: 'demoUser123' });
     const fileInputRef = useRef(null);
@@ -224,15 +226,16 @@ export default function App() {
         }
     };
 
+
     // --- AI Logic ---
     const getSuggestion = () => {
-        // This is a mock for the demo. In a real app, this would be an API call.
+        // This is a mock for the demo. In a real app, this would use weather and zipCode.
         setTimeout(() => {
-             setSuggestion({ text: "Try a ripe banana today! It's great for potassium and provides a natural energy boost." });
+            setSuggestion({ text: zipCode ? `Fruit suggestion for ${zipCode}: Try a ripe banana today!` : "Try a ripe banana today! It's great for potassium and provides a natural energy boost." });
         }, 1000);
     };
 
-    useEffect(() => { getSuggestion(); }, []);
+    useEffect(() => { getSuggestion(); }, [zipCode]);
     
     const analyzeFruit = async (file) => {
         if (!file) return;
@@ -345,6 +348,16 @@ export default function App() {
     // --- Main Render Logic ---
     return (
         <div className="bg-slate-100 min-h-screen font-sans text-slate-900 flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8">
+            {showZipDialog && (
+                <ZipCodeDialog
+                    onSubmit={zip => {
+                        setZipCode(zip);
+                        localStorage.setItem('zipCode', zip);
+                        setShowZipDialog(false);
+                    }}
+                    initialZip={zipCode}
+                />
+            )}
             {isCameraOpen && <CameraView onCapture={file => { handleImageChange(file); setIsCameraOpen(false); }} onClose={() => setIsCameraOpen(false)} />}
             <main className="w-full max-w-2xl mx-auto">
                 <header className="text-center my-8">
@@ -408,7 +421,7 @@ export default function App() {
             </main>
         </div>
     );
-}
+
 
 const AnalysisTabs = ({ analysisResult, onLogFruit, apiKey }) => {
     const [activeTab, setActiveTab] = useState('analysis');
