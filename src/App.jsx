@@ -227,15 +227,65 @@ function App() {
         }
     };
 
-    // --- AI Logic ---
-    const getSuggestion = () => {
-        // This is a mock for the demo. In a real app, this would use weather and zipCode.
-        setTimeout(() => {
-            setSuggestion({ text: zipCode ? `Fruit suggestion for ${zipCode}: Try a ripe banana today!` : "Try a ripe banana today! It's great for potassium and provides a natural energy boost." });
-        }, 1000);
-    };
 
-    useEffect(() => { getSuggestion(); }, [zipCode]);
+    // --- AI Weather-based Fruit Suggestion Logic ---
+    // Helper: fetch weather for a US zip code using Open-Meteo (no API key required)
+    async function fetchWeatherByZip(zip) {
+        // Use Zippopotam.us to get lat/lon for zip
+        const locRes = await fetch(`https://api.zippopotam.us/us/${zip}`);
+        if (!locRes.ok) throw new Error('Invalid zip code or location not found.');
+        const locData = await locRes.json();
+        const [place] = locData.places;
+        const lat = place.latitude;
+        const lon = place.longitude;
+        // Fetch current weather from Open-Meteo
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        if (!weatherRes.ok) throw new Error('Weather data not available.');
+        const weatherData = await weatherRes.json();
+        return {
+            city: place["place name"],
+            state: place["state abbreviation"],
+            lat,
+            lon,
+            ...weatherData.current_weather
+        };
+    }
+
+    // Helper: get fruit suggestion from Gemini based on weather
+    async function getFruitSuggestionFromGemini(weather) {
+        const weatherSummary = `Weather for ${weather.city}, ${weather.state}: ${weather.temperature}°C, wind ${weather.windspeed} km/h, ${weather.weathercode ? 'weather code ' + weather.weathercode : ''}`;
+        const prompt = `Given the following weather conditions, suggest a fruit that is especially suitable to eat today. Consider hydration, energy, and seasonality. Explain your reasoning in 1-2 sentences, then name the fruit in a short bold heading.\n\n${weatherSummary}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error('Gemini API error');
+        const result = await response.json();
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No suggestion.';
+        return text;
+    }
+
+    // Main suggestion effect
+    useEffect(() => {
+        let ignore = false;
+        async function suggest() {
+            if (!zipCode) {
+                setSuggestion({ text: "Enter your zip code to get a fruit suggestion based on your local weather." });
+                return;
+            }
+            setSuggestion({ text: "Loading weather and fruit suggestion..." });
+            try {
+                const weather = await fetchWeatherByZip(zipCode);
+                if (ignore) return;
+                const aiText = await getFruitSuggestionFromGemini(weather);
+                if (ignore) return;
+                setSuggestion({ text: aiText });
+            } catch (err) {
+                setSuggestion({ text: `Could not get suggestion: ${err.message}` });
+            }
+        }
+        suggest();
+        return () => { ignore = true; };
+    }, [zipCode, apiKey]);
 
     const analyzeFruit = async (file) => {
         if (!file) return;
