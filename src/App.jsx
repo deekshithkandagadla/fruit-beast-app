@@ -164,6 +164,8 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
 );
 
 
+// Main App component
+function App() {
     // App State
     const [view, setView] = useState('home'); // home, analysis, calendar
     const [image, setImage] = useState(null);
@@ -180,7 +182,6 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
     const [currentUser] = useState({ uid: 'demoUser123' });
     const fileInputRef = useRef(null);
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
 
     // Listen to fruit logs in Firestore for the current user
     useEffect(() => {
@@ -226,7 +227,6 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
         }
     };
 
-
     // --- AI Logic ---
     const getSuggestion = () => {
         // This is a mock for the demo. In a real app, this would use weather and zipCode.
@@ -236,7 +236,7 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
     };
 
     useEffect(() => { getSuggestion(); }, [zipCode]);
-    
+
     const analyzeFruit = async (file) => {
         if (!file) return;
 
@@ -253,20 +253,7 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
 
         try {
             const base64ImageData = await toBase64(file);
-            const prompt = `Analyze the fruit in this image. 
-0.  **Fruit Name**: Identify the fruit in the image.
-1.  **Main Analysis**: Provide a one-paragraph analysis. Determine its ripeness (Unripe, Perfectly Ripe, Overripe). If unripe, estimate when it will be best to eat.
-2.  **Metadata**: After the main analysis, provide these exact sub-headings and their values:
-    - **Wait Time**: Estimated time until ripe. State "Ready to eat" if ripe.
-    - **Shelf Period**: Estimated time it will last in its current state.
-    - **Ripeness Percentage**: A numerical percentage of ripeness (e.g., 85%).
-3.  **Details**: After the metadata, provide the following details using these exact sub-headings:
-    - **Nutrition**: Key nutritional benefits.
-    - **Daily Intake**: A general recommendation for daily consumption.
-    - **Seasonal Info**: When is this fruit typically in season?
-    - **Recipe Idea**: A simple recipe idea, like a smoothie or salad, with brief instructions.
-    - **Good to Know**: If the fruit is overripe or spoiling, what are the potential health risks? Describe its energy potential.
-    - **Nutrition Score**: A number from 0-100.`;
+            const prompt = `Analyze the fruit in this image. \n0.  **Fruit Name**: Identify the fruit in the image.\n1.  **Main Analysis**: Provide a one-paragraph analysis. Determine its ripeness (Unripe, Perfectly Ripe, Overripe). If unripe, estimate when it will be best to eat.\n2.  **Metadata**: After the main analysis, provide these exact sub-headings and their values:\n    - **Wait Time**: Estimated time until ripe. State "Ready to eat" if ripe.\n    - **Shelf Period**: Estimated time it will last in its current state.\n    - **Ripeness Percentage**: A numerical percentage of ripeness (e.g., 85%).\n3.  **Details**: After the metadata, provide the following details using these exact sub-headings:\n    - **Nutrition**: Key nutritional benefits.\n    - **Daily Intake**: A general recommendation for daily consumption.\n    - **Seasonal Info**: When is this fruit typically in season?\n    - **Recipe Idea**: A simple recipe idea, like a smoothie or salad, with brief instructions.\n    - **Good to Know**: If the fruit is overripe or spoiling, what are the potential health risks? Describe its energy potential.\n    - **Nutrition Score**: A number from 0-100.`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }] }] };
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -287,14 +274,14 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
             ripeness: "Unknown", fruitName: "Fruit", nutritionScore: 0,
             waitTime: "N/A", shelfPeriod: "N/A", ripenessPercentage: "N/A"
         };
-    
+
         const cleanText = (str) => str ? str.trim().replace(/\s*\d+\.?\s*$/, '') : "";
-    
+
         const createRegex = (section, nextSection) => new RegExp(`-?\\s*\\*\\*\\s*${section}\\s*\\*\\*:\\s*([\\s\\S]*?)(?=-?\\s*\\*\\*\\s*${nextSection}|$)`, 'i');
-    
+
         const fruitNameMatch = text.match(/\*\*Fruit Name\*\*:\s*([\w\s]+)/i);
         if (fruitNameMatch) sections.fruitName = cleanText(fruitNameMatch[1]);
-    
+
         const analysisMatch = text.match(createRegex('Main Analysis', 'Metadata'));
         if (analysisMatch) {
             sections.analysis = cleanText(analysisMatch[1]);
@@ -304,25 +291,25 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
                 sections.ripeness = ripenessInAnalysis[0].charAt(0).toUpperCase() + ripenessInAnalysis[0].slice(1).toLowerCase();
             }
         }
-    
+
         const fields = {
             waitTime: 'Shelf Period', shelfPeriod: 'Ripeness Percentage', ripenessPercentage: 'Details|Nutrition',
             nutrition: 'Daily Intake', dailyIntake: 'Seasonal Info', seasonalInfo: 'Recipe Idea',
             recipeIdea: 'Good to Know', goodToKnow: 'Nutrition Score'
         };
-    
+
         Object.entries(fields).forEach(([key, next]) => {
             const fieldName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
             const match = text.match(createRegex(fieldName, next));
             if (match) sections[key] = cleanText(match[1]);
         });
-    
+
         const scoreMatch = text.match(/-?\s*\*\*\s*Nutrition Score\s*\*\*:\s*(\d+)/i);
         if (scoreMatch) sections.nutritionScore = parseInt(scoreMatch[1], 10);
         
         return sections;
     };
-    
+
     // --- UI Handlers & Renderers ---
     const getRipenessColor = (ripeness) => {
         if (!ripeness) return 'bg-slate-100 text-slate-800 border-slate-300';
@@ -333,7 +320,7 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
             default: return 'bg-slate-100 text-slate-800 border-slate-300';
         }
     };
-    
+
     const handleImageChange = (file) => { if (file) analyzeFruit(file); };
     const requestNotification = async () => {
         if (!('Notification' in window)) { alert("This browser does not support desktop notification"); return; }
@@ -421,6 +408,9 @@ const SuggestionCard = ({ suggestion, onRemind }) => (
             </main>
         </div>
     );
+}
+
+export default App;
 
 
 const AnalysisTabs = ({ analysisResult, onLogFruit, apiKey }) => {
