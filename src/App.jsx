@@ -470,40 +470,11 @@ const AnalysisTabs = ({ analysisResult, onLogFruit, apiKey }) => {
     const tabs = ['analysis', 'nutrition', 'more', 'goodToKnow'];
     
     const generateRecipeImage = async () => {
-        if (!analysisResult.recipeIdea || recipeImageUrl) return;
-
-        setIsImageLoading(true);
-        setImageError(null);
-
-        try {
-            const prompt = `A vibrant, high-quality, appealing photograph of: ${analysisResult.recipeIdea}. Food photography style, bright lighting, clean background.`;
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseModalities: ['IMAGE'] },
-            };
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
-            
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) { throw new Error(`Image generation failed: ${response.status}`); }
-
-            const result = await response.json();
-            const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-            
-            if (!base64Data) { throw new Error("No image data returned from API."); }
-            
-            setRecipeImageUrl(`data:image/png;base64,${base64Data}`);
-
-        } catch (err) {
-            console.error(err);
-            setImageError("Sorry, couldn't create an image for this recipe.");
-        } finally {
-            setIsImageLoading(false);
-        }
+        // Image generation model is not currently available.
+        // if (!analysisResult.recipeIdea || recipeImageUrl) return;
+        // setIsImageLoading(true);
+        // ... implementation commented out ...
+        setImageError("Image generation is currently disabled.");
     };
 
     useEffect(() => {
