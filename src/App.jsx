@@ -269,7 +269,7 @@ function App() {
         const weatherSummary = `Weather for ${weather.city}, ${weather.state}: ${weather.temperature}°C, wind ${weather.windspeed} km/h, ${weather.weathercode ? 'weather code ' + weather.weathercode : ''}`;
         const prompt = `Given the following weather conditions, suggest a fruit that is especially suitable to eat today. Consider hydration, energy, and seasonality. Explain your reasoning in 1-2 sentences, then name the fruit in a short bold heading.\n\n${weatherSummary}`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) {
             const errText = await response.text();
@@ -322,7 +322,7 @@ function App() {
             const base64ImageData = await toBase64(file);
             const prompt = `Analyze the fruit in this image. \n0.  **Fruit Name**: Identify the fruit in the image.\n1.  **Main Analysis**: Provide a one-paragraph analysis. Determine its ripeness (Unripe, Perfectly Ripe, Overripe). If unripe, estimate when it will be best to eat.\n2.  **Metadata**: After the main analysis, provide these exact sub-headings and their values:\n    - **Wait Time**: Estimated time until ripe. State "Ready to eat" if ripe.\n    - **Shelf Period**: Estimated time it will last in its current state.\n    - **Ripeness Percentage**: A numerical percentage of ripeness (e.g., 85%).\n3.  **Details**: After the metadata, provide the following details using these exact sub-headings:\n    - **Nutrition**: Key nutritional benefits.\n    - **Daily Intake**: A general recommendation for daily consumption.\n    - **Seasonal Info**: When is this fruit typically in season?\n    - **Recipe Idea**: A simple recipe idea, like a smoothie or salad, with brief instructions.\n    - **Good to Know**: If the fruit is overripe or spoiling, what are the potential health risks? Describe its energy potential.\n    - **Nutrition Score**: A number from 0-100.`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }] }] };
-            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) {
                 const errText = await response.text();
@@ -419,7 +419,7 @@ function App() {
             <main className="w-full max-w-2xl mx-auto">
                 <header className="text-center my-8">
                     <h1 className="text-4xl sm:text-5xl font-extrabold text-teal-600 tracking-tight cursor-pointer" onClick={() => { setView('home'); setAnalysisResult(null); setImage(null); }}>Fruit Beast</h1>
-                    <p className="text-slate-500 mt-2 text-lg">Your AI guide to perfect ripeness <span className="text-xs text-slate-300">v1.4</span></p>
+                    <p className="text-slate-500 mt-2 text-lg">Your AI guide to perfect ripeness <span className="text-xs text-slate-300">v1.5</span></p>
                 </header>
                 <div className="w-full flex justify-center border-b border-slate-300 mb-6">
                     <button onClick={() => setView('home')} className={`px-4 py-2 ${view === 'home' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-slate-500'}`}>Home</button>
