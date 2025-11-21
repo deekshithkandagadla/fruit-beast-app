@@ -419,7 +419,7 @@ function App() {
             <main className="w-full max-w-2xl mx-auto">
                 <header className="text-center my-8">
                     <h1 className="text-4xl sm:text-5xl font-extrabold text-teal-600 tracking-tight cursor-pointer" onClick={() => { setView('home'); setAnalysisResult(null); setImage(null); }}>Fruit Beast</h1>
-                    <p className="text-slate-500 mt-2 text-lg">Your AI guide to perfect ripeness <span className="text-xs text-slate-300">v1.7</span></p>
+                    <p className="text-slate-500 mt-2 text-lg">Your AI guide to perfect ripeness <span className="text-xs text-slate-300">v1.8</span></p>
                 </header>
                 <div className="w-full flex justify-center border-b border-slate-300 mb-6">
                     <button onClick={() => setView('home')} className={`px-4 py-2 ${view === 'home' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-slate-500'}`}>Home</button>
@@ -491,7 +491,7 @@ const AnalysisTabs = ({ analysisResult, onLogFruit, apiKey }) => {
     const tabs = ['analysis', 'nutrition', 'more', 'goodToKnow'];
     
     const generateRecipeImage = async () => {
-        if (!analysisResult.recipeIdea || recipeImageUrl) return;
+        if (!analysisResult.recipeIdea || recipeImageUrl || !apiKey) return;
         
         setIsImageLoading(true);
         setImageError(null);
@@ -501,66 +501,56 @@ const AnalysisTabs = ({ analysisResult, onLogFruit, apiKey }) => {
             const recipeMatch = analysisResult.recipeIdea.match(/\*\*(.*?)\*\*/);
             const recipeName = recipeMatch ? recipeMatch[1] : `${analysisResult.fruitName} Recipe`;
             
-            // Create an attractive recipe card with CSS styling
-            const recipeCardHtml = `
-                <div style="
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    color: white;
-                    padding: 2rem;
-                    border-radius: 1rem;
-                    text-align: center;
-                    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
-                    margin: 1rem 0;
-                ">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">🍽️</div>
-                    <h3 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                        ${recipeName}
-                    </h3>
-                    <p style="opacity: 0.9; font-size: 1rem;">
-                        Featuring ${analysisResult.fruitName}
-                    </p>
-                    <div style="
-                        background: rgba(255,255,255,0.2);
-                        border-radius: 0.5rem;
-                        padding: 1rem;
-                        margin-top: 1rem;
-                        backdrop-filter: blur(10px);
-                    ">
-                        <div style="font-size: 0.875rem; opacity: 0.8;">
-                            Fresh • Healthy • Delicious
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Create a detailed prompt for realistic food photography
+            const imagePrompt = `Create a stunning, professional food photography image of "${recipeName}" featuring fresh ${analysisResult.fruitName}. The image should show:
+            - Beautiful presentation on an elegant white plate or wooden board
+            - Fresh, vibrant ${analysisResult.fruitName} as the main ingredient
+            - Perfect lighting with natural shadows
+            - Restaurant-quality plating and styling
+            - Appetizing, Instagram-worthy composition
+            - Clean, modern background with soft focus
+            - Colors that highlight the natural beauty of ${analysisResult.fruitName}
+            Style: Professional food photography, high resolution, appetizing, fresh and healthy appearance`;
             
-            // Convert HTML to data URL for display as an image
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const svg = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
-                    <defs>
-                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
-                            <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
-                        </linearGradient>
-                    </defs>
-                    <rect width="400" height="300" fill="url(#grad1)" rx="16"/>
-                    <text x="200" y="80" text-anchor="middle" fill="white" font-size="48">🍽️</text>
-                    <text x="200" y="140" text-anchor="middle" fill="white" font-size="24" font-weight="bold">${recipeName}</text>
-                    <text x="200" y="170" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="16">Featuring ${analysisResult.fruitName}</text>
-                    <rect x="50" y="200" width="300" height="60" fill="rgba(255,255,255,0.2)" rx="8"/>
-                    <text x="200" y="235" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-size="14">Fresh • Healthy • Delicious</text>
-                </svg>
-            `;
+            // Use Pollinations AI with FLUX model (current best available model)
+            const encodedPrompt = encodeURIComponent(imagePrompt);
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=384&seed=${Math.floor(Math.random() * 1000000)}&enhance=true&model=flux`;
             
-            const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
-            const url = URL.createObjectURL(svgBlob);
-            setRecipeImageUrl(url);
+            // Test if the image loads successfully
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                setRecipeImageUrl(imageUrl);
+                setIsImageLoading(false);
+            };
+            
+            img.onerror = () => {
+                // Fallback to a simpler prompt if the detailed one fails
+                const fallbackPrompt = encodeURIComponent(`${recipeName} with ${analysisResult.fruitName}, food photography, beautiful presentation`);
+                const fallbackUrl = `https://image.pollinations.ai/prompt/${fallbackPrompt}?width=512&height=384&seed=${Math.floor(Math.random() * 1000000)}`;
+                
+                const fallbackImg = new Image();
+                fallbackImg.crossOrigin = 'anonymous';
+                
+                fallbackImg.onload = () => {
+                    setRecipeImageUrl(fallbackUrl);
+                    setIsImageLoading(false);
+                };
+                
+                fallbackImg.onerror = () => {
+                    setImageError("Could not generate recipe image at this time. Please try again later.");
+                    setIsImageLoading(false);
+                };
+                
+                fallbackImg.src = fallbackUrl;
+            };
+            
+            img.src = imageUrl;
             
         } catch (err) {
-            console.error("Recipe card generation error:", err);
-            setImageError(`Could not create recipe card: ${err.message}`);
-        } finally {
+            console.error("Recipe image generation error:", err);
+            setImageError(`Could not generate recipe image: ${err.message}`);
             setIsImageLoading(false);
         }
     };
@@ -570,6 +560,15 @@ const AnalysisTabs = ({ analysisResult, onLogFruit, apiKey }) => {
             generateRecipeImage();
         }
     }, [activeTab]);
+
+    // Cleanup generated image URLs to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            if (recipeImageUrl && recipeImageUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(recipeImageUrl);
+            }
+        };
+    }, [recipeImageUrl]);
 
     return (
         <>
