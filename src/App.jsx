@@ -187,13 +187,7 @@ function App() {
     useEffect(() => {
         console.log('API Key present:', !!apiKey);
         console.log('API Key length:', apiKey?.length || 0);
-        if (!apiKey) console.error('VITE_GEMINI_API_KEY is missing!');
-    }, [apiKey]);
-    
-    // Debug: Log API key status
-    useEffect(() => {
-        console.log('API Key present:', !!apiKey);
-        console.log('API Key length:', apiKey?.length || 0);
+        if (!apiKey) console.error('VITE_GEMINI_API_KEY is missing! Create a .env file with your Gemini API key.');
     }, [apiKey]);
 
     // Listen to fruit logs in Firestore for the current user
@@ -267,9 +261,18 @@ function App() {
     // Helper: get fruit suggestion from Gemini based on weather
     async function getFruitSuggestionFromGemini(weather) {
         const weatherSummary = `Weather for ${weather.city}, ${weather.state}: ${weather.temperature}°C, wind ${weather.windspeed} km/h, ${weather.weathercode ? 'weather code ' + weather.weathercode : ''}`;
-        const prompt = `Given the following weather conditions, suggest a fruit that is especially suitable to eat today. Consider hydration, energy, and seasonality. Explain your reasoning in 1-2 sentences, then name the fruit in a short bold heading.\n\n${weatherSummary}`;
+        const prompt = `You are Dr. Peel, a fun and enthusiastic fruit expert who loves helping people stay healthy! Based on the weather below, give me a catchy, exciting, and friendly fruit recommendation. Be conversational, use exclamations, and sound like you genuinely care about keeping me healthy and happy!
+
+Examples of the tone I want:
+- If hot: "Oh my gosh, it's scorching out there! Cool yourself down with some refreshing watermelon - your body will thank you!"
+- If cold: "Brrr! Time to boost your immune system with some vitamin C-packed oranges!"
+- If windy: "Don't let this crazy wind drain your energy - grab a banana for instant fuel!"
+
+Keep it short (1-2 sentences max), exclude unnecessary symbols, be enthusiastic, and end with the fruit name in bold. Make me excited about eating fruit!
+
+Weather conditions: ${weatherSummary}`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) {
             const errText = await response.text();
@@ -322,7 +325,7 @@ function App() {
             const base64ImageData = await toBase64(file);
             const prompt = `Analyze the fruit in this image. \n0.  **Fruit Name**: Identify the fruit in the image.\n1.  **Main Analysis**: Provide a one-paragraph analysis. Determine its ripeness (Unripe, Perfectly Ripe, Overripe). If unripe, estimate when it will be best to eat.\n2.  **Metadata**: After the main analysis, provide these exact sub-headings and their values:\n    - **Wait Time**: Estimated time until ripe. State "Ready to eat" if ripe.\n    - **Shelf Period**: Estimated time it will last in its current state.\n    - **Ripeness Percentage**: A numerical percentage of ripeness (e.g., 85%).\n3.  **Details**: After the metadata, provide the following details using these exact sub-headings:\n    - **Nutrition**: Key nutritional benefits.\n    - **Daily Intake**: A general recommendation for daily consumption.\n    - **Seasonal Info**: When is this fruit typically in season?\n    - **Recipe Idea**: A simple recipe idea, like a smoothie or salad, with brief instructions.\n    - **Good to Know**: If the fruit is overripe or spoiling, what are the potential health risks? Describe its energy potential.\n    - **Nutrition Score**: A number from 0-100.`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }] }] };
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) {
                 const errText = await response.text();
