@@ -182,13 +182,68 @@ function App() {
     const [currentUser] = useState({ uid: 'demoUser123' });
     const fileInputRef = useRef(null);
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    
+    const GEMINI_MODEL = 'gemini-2.0-flash-lite';
+    const GEMINI_API_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
     // Debug: Log API key status
     useEffect(() => {
         console.log('API Key present:', !!apiKey);
         console.log('API Key length:', apiKey?.length || 0);
         if (!apiKey) console.error('VITE_GEMINI_API_KEY is missing! Create a .env file with your Gemini API key.');
     }, [apiKey]);
+
+    // Parse Gemini API error into a user-friendly message
+    function parseGeminiError(status, errText) {
+        try {
+            const errJson = JSON.parse(errText);
+            const message = errJson?.error?.message || errText;
+            if (status === 429) {
+                const retryMatch = message.match(/retry in ([\d.]+)s/i);
+                if (retryMatch) {
+                    return `Rate limit reached. Please retry in ${Math.ceil(parseFloat(retryMatch[1]))} seconds.`;
+                }
+                return 'Rate limit reached. Please wait a moment and try again.';
+            }
+            if (status === 401 || status === 403) return 'API key is invalid or missing. Please check your configuration.';
+            if (status === 400) return 'Invalid request. Please try again.';
+            return `API error (${status}): ${message.substring(0, 150)}`;
+        } catch {
+            return `API error (${status}). Please try again.`;
+        }
+    }
+
+    // Call Gemini API with automatic retry on 429 (rate limit)
+    async function callGeminiWithRetry(payload, maxRetries = 2) {
+        const apiUrl = `${GEMINI_API_BASE}?key=${apiKey}`;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) return response.json();
+            const errText = await response.text();
+            if (response.status === 429 && attempt < maxRetries) {
+                let delay = 10000;
+                try {
+                    const errJson = JSON.parse(errText);
+                    const retryInfo = errJson?.error?.details?.find(
+                        d => d['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
+                    );
+                    if (retryInfo?.retryDelay) {
+                        // REST API returns duration as a string like "35s"
+                        const seconds = parseFloat(retryInfo.retryDelay.replace('s', ''));
+                        delay = Math.min(seconds * 1000, 60000);
+                    }
+                } catch { /* use default delay */ }
+                console.warn(`Gemini rate limited. Retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            throw new Error(parseGeminiError(response.status, errText));
+        }
+        throw new Error('Rate limit reached. Please wait a moment and try again.');
+    }
 
     // Listen to fruit logs in Firestore for the current user
     useEffect(() => {
@@ -272,24 +327,7 @@ Keep it short (1-2 sentences max), exclude unnecessary symbols, be enthusiastic,
 
 Weather conditions: ${weatherSummary}`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-        console.log('Making API request to:', apiUrl.substring(0, 100) + '...');
-        console.log('Payload:', JSON.stringify(payload, null, 2));
-        
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        
-        console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-        
-        if (!response.ok) {
-            const errText = await response.text();
-            console.error("Gemini API Error Details:");
-            console.error("Status:", response.status);
-            console.error("Status Text:", response.statusText);
-            console.error("Response Body:", errText);
-            throw new Error(`Gemini API error: ${response.status} - ${errText}`);
-        }
-        const result = await response.json();
+        const result = await callGeminiWithRetry(payload);
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No suggestion.';
         return text;
     }
@@ -335,14 +373,7 @@ Weather conditions: ${weatherSummary}`;
             const base64ImageData = await toBase64(file);
             const prompt = `Analyze the fruit in this image. \n0.  **Fruit Name**: Identify the fruit in the image.\n1.  **Main Analysis**: Provide a one-paragraph analysis. Determine its ripeness (Unripe, Perfectly Ripe, Overripe). If unripe, estimate when it will be best to eat.\n2.  **Metadata**: After the main analysis, provide these exact sub-headings and their values:\n    - **Wait Time**: Estimated time until ripe. State "Ready to eat" if ripe.\n    - **Shelf Period**: Estimated time it will last in its current state.\n    - **Ripeness Percentage**: A numerical percentage of ripeness (e.g., 85%).\n3.  **Details**: After the metadata, provide the following details using these exact sub-headings:\n    - **Nutrition**: Key nutritional benefits.\n    - **Daily Intake**: A general recommendation for daily consumption.\n    - **Seasonal Info**: When is this fruit typically in season?\n    - **Recipe Idea**: A simple recipe idea, like a smoothie or salad, with brief instructions.\n    - **Good to Know**: If the fruit is overripe or spoiling, what are the potential health risks? Describe its energy potential.\n    - **Nutrition Score**: A number from 0-100.`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }] }] };
-            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) {
-                const errText = await response.text();
-                console.error("Analysis API Error:", errText);
-                throw new Error(`API request failed: ${response.status} - ${errText.substring(0, 100)}`);
-            }
-            const result = await response.json();
+            const result = await callGeminiWithRetry(payload);
             const candidate = result.candidates?.[0];
             if (candidate?.content?.parts?.[0]?.text) {
                 setAnalysisResult(parseAnalysisText(candidate.content.parts[0].text));
