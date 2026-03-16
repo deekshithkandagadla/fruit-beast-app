@@ -270,7 +270,10 @@ Examples of the tone I want:
 
 Keep it short (1-2 sentences max), exclude unnecessary symbols, be enthusiastic, and end with the fruit name in bold. Make me excited about eating fruit!
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+Weather conditions: ${weatherSummary}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        console.log('Making API request to:', apiUrl.substring(0, 100) + '...');
         console.log('Payload:', JSON.stringify(payload, null, 2));
         
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
