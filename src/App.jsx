@@ -270,14 +270,21 @@ Examples of the tone I want:
 
 Keep it short (1-2 sentences max), exclude unnecessary symbols, be enthusiastic, and end with the fruit name in bold. Make me excited about eating fruit!
 
-Weather conditions: ${weatherSummary}`;
-        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+        console.log('Payload:', JSON.stringify(payload, null, 2));
+        
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        
         if (!response.ok) {
             const errText = await response.text();
-            console.error("Gemini API Error:", errText);
-            throw new Error(`Gemini API error: ${response.status}`);
+            console.error("Gemini API Error Details:");
+            console.error("Status:", response.status);
+            console.error("Status Text:", response.statusText);
+            console.error("Response Body:", errText);
+            throw new Error(`Gemini API error: ${response.status} - ${errText}`);
         }
         const result = await response.json();
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No suggestion.';
@@ -324,9 +331,7 @@ Weather conditions: ${weatherSummary}`;
         try {
             const base64ImageData = await toBase64(file);
             const prompt = `Analyze the fruit in this image. \n0.  **Fruit Name**: Identify the fruit in the image.\n1.  **Main Analysis**: Provide a one-paragraph analysis. Determine its ripeness (Unripe, Perfectly Ripe, Overripe). If unripe, estimate when it will be best to eat.\n2.  **Metadata**: After the main analysis, provide these exact sub-headings and their values:\n    - **Wait Time**: Estimated time until ripe. State "Ready to eat" if ripe.\n    - **Shelf Period**: Estimated time it will last in its current state.\n    - **Ripeness Percentage**: A numerical percentage of ripeness (e.g., 85%).\n3.  **Details**: After the metadata, provide the following details using these exact sub-headings:\n    - **Nutrition**: Key nutritional benefits.\n    - **Daily Intake**: A general recommendation for daily consumption.\n    - **Seasonal Info**: When is this fruit typically in season?\n    - **Recipe Idea**: A simple recipe idea, like a smoothie or salad, with brief instructions.\n    - **Good to Know**: If the fruit is overripe or spoiling, what are the potential health risks? Describe its energy potential.\n    - **Nutrition Score**: A number from 0-100.`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }] }] };
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-vision:generateContent?key=${apiKey}`;
             if (!response.ok) {
                 const errText = await response.text();
                 console.error("Analysis API Error:", errText);
