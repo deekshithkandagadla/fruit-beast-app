@@ -172,6 +172,7 @@ function App() {
     const [analysisResult, setAnalysisResult] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [retryStatus, setRetryStatus] = useState(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [suggestion, setSuggestion] = useState({ text: "Loading today's suggestion..." });
     const [fruitLogs, setFruitLogs] = useState({});
@@ -182,8 +183,7 @@ function App() {
     const [currentUser] = useState({ uid: 'demoUser123' });
     const fileInputRef = useRef(null);
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    const GEMINI_MODEL = 'gemini-2.0-flash-lite';
-    const GEMINI_API_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+    const GEMINI_MODELS = ['gemini-2.0-flash-lite', 'gemini-1.5-flash'];
 
     // Debug: Log API key status
     useEffect(() => {
@@ -212,35 +212,54 @@ function App() {
         }
     }
 
-    // Call Gemini API with automatic retry on 429 (rate limit)
+    // Call Gemini API with automatic retry on 429 (rate limit) and model fallback
     async function callGeminiWithRetry(payload, maxRetries = 2) {
-        const apiUrl = `${GEMINI_API_BASE}?key=${apiKey}`;
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (response.ok) return response.json();
-            const errText = await response.text();
-            if (response.status === 429 && attempt < maxRetries) {
-                let delay = 10000;
-                try {
-                    const errJson = JSON.parse(errText);
-                    const retryInfo = errJson?.error?.details?.find(
-                        d => d['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
-                    );
-                    if (retryInfo?.retryDelay) {
-                        // REST API returns duration as a string like "35s"
-                        const seconds = parseFloat(retryInfo.retryDelay.replace('s', ''));
-                        delay = Math.min(seconds * 1000, 60000);
+        for (let modelIdx = 0; modelIdx < GEMINI_MODELS.length; modelIdx++) {
+            const model = GEMINI_MODELS[modelIdx];
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            let rateLimitedAfterRetries = false;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    setRetryStatus(null);
+                    return response.json();
+                }
+                const errText = await response.text();
+                if (response.status === 429) {
+                    if (attempt < maxRetries) {
+                        let delay = 10000;
+                        try {
+                            const errJson = JSON.parse(errText);
+                            const retryInfo = errJson?.error?.details?.find(
+                                d => d['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
+                            );
+                            if (retryInfo?.retryDelay) {
+                                // REST API returns duration as a string like "35s"
+                                const seconds = parseFloat(retryInfo.retryDelay.replace('s', ''));
+                                delay = Math.min(seconds * 1000, 60000);
+                            }
+                        } catch { /* use default delay */ }
+                        const delaySecs = Math.ceil(delay / 1000);
+                        console.warn(`Gemini rate limited (${model}). Retrying in ${delaySecs}s (attempt ${attempt + 1}/${maxRetries})...`);
+                        setRetryStatus(`Rate limited. Retrying in ${delaySecs}s…`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
                     }
-                } catch { /* use default delay */ }
-                console.warn(`Gemini rate limited. Retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue;
+                    rateLimitedAfterRetries = true;
+                } else {
+                    setRetryStatus(null);
+                    throw new Error(parseGeminiError(response.status, errText));
+                }
             }
-            throw new Error(parseGeminiError(response.status, errText));
+            if (rateLimitedAfterRetries && modelIdx < GEMINI_MODELS.length - 1) {
+                console.warn(`Model ${model} still rate limited. Falling back to ${GEMINI_MODELS[modelIdx + 1]}…`);
+                setRetryStatus(`Switching to backup model…`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
         }
         throw new Error('Rate limit reached. Please wait a moment and try again.');
     }
@@ -378,7 +397,7 @@ Weather conditions: ${weatherSummary}`;
             if (candidate?.content?.parts?.[0]?.text) {
                 setAnalysisResult(parseAnalysisText(candidate.content.parts[0].text));
             } else { throw new Error('Invalid AI response.'); }
-        } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsLoading(false); }
+        } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsLoading(false); setRetryStatus(null); }
     };
 
     const parseAnalysisText = (text) => {
@@ -506,6 +525,7 @@ Weather conditions: ${weatherSummary}`;
                     <div className="bg-white rounded-2xl shadow-xl w-full p-6 sm:p-8">
                         <div className="w-full h-64 mb-6 rounded-lg overflow-hidden shadow-inner"><img src={image} alt="Selected fruit" className="w-full h-full object-cover" /></div>
                         {isLoading && <LoadingState />}
+                        {isLoading && retryStatus && <p className="mt-2 text-center text-amber-600 text-sm font-medium">{retryStatus}</p>}
                         {error && <div className="text-rose-700">{error}</div>}
                         {analysisResult && !isLoading && (
                             <div className="animate-fade-in">
