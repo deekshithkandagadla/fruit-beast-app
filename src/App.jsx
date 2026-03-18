@@ -183,7 +183,7 @@ function App() {
     const [currentUser] = useState({ uid: 'demoUser123' });
     const fileInputRef = useRef(null);
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    const GEMINI_MODELS = ['gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+    const GEMINI_MODELS = ['gemini-2.0-flash-lite', 'gemini-2.5-flash'];
 
     // Debug: Log API key status
     useEffect(() => {
