@@ -523,7 +523,9 @@ Weather conditions: ${weatherSummary}`;
                 )}
                 {view === 'analysis' && (
                     <div className="bg-white rounded-2xl shadow-xl w-full p-6 sm:p-8">
-                        <div className="w-full max-h-96 mb-6 rounded-lg overflow-hidden shadow-inner bg-slate-100 flex justify-center"><img src={image} alt="Selected fruit" className="w-full h-full object-contain" /></div>
+                        <div className="w-full mb-6 rounded-lg overflow-hidden shadow-sm bg-slate-100 flex justify-center py-4">
+                            <img src={image} alt="Selected fruit" className="max-w-full h-auto max-h-96 object-contain" />
+                        </div>
                         {isLoading && <LoadingState />}
                         {isLoading && retryStatus && <p className="mt-2 text-center text-amber-600 text-sm font-medium">{retryStatus}</p>}
                         {error && <div className="text-rose-700">{error}</div>}
