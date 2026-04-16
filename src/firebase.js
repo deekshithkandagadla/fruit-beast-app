@@ -4,14 +4,13 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  // TODO: Replace with your actual Firebase config
-  apiKey: "AIzaSyC_ANIDvhtIu5aHu0osIvCBtAt8auqx9Xw",
-  authDomain: "fruit-beast.firebaseapp.com",
-  projectId: "fruit-beast",
-  storageBucket: "fruit-beast.firebasestorage.app",
-  messagingSenderId: "1013290434742",
-  appId: "1:1013290434742:web:556be76b3c0dac390d2617",
-  measurementId: "G-KXQZC58NE4"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
